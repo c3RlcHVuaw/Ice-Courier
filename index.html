@@ -306,6 +306,13 @@
       line-height: 1.4;
     }
 
+    .mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 14px 0 4px;
+    }
+
     button {
       min-height: 44px;
       margin-top: 12px;
@@ -318,6 +325,20 @@
       font-weight: 700;
       cursor: pointer;
       box-shadow: 0 8px 18px rgba(214, 45, 63, 0.34);
+    }
+
+    .mode-button {
+      margin-top: 0;
+      padding: 10px;
+      background: linear-gradient(180deg, #263d50, #182b3a);
+      border: 1px solid rgba(142, 198, 231, 0.44);
+      color: #e9f7ff;
+      box-shadow: none;
+    }
+
+    .mode-button.active {
+      background: linear-gradient(180deg, #35c7df, #15859e);
+      color: #07141c;
     }
 
     button:hover,
@@ -355,6 +376,10 @@
         left: 12px;
         right: 12px;
         min-width: 0;
+      }
+
+      .mode-grid {
+        grid-template-columns: 1fr;
       }
 
       .dialog h1 {
@@ -474,6 +499,10 @@
           <h1 id="messageTitle">Ice Courier</h1>
           <p id="messageText">Соберите 15 кристаллов и не врежьтесь в опасные ледяные плиты.</p>
           <p>Управление: A/D, стрелки или мышь.</p>
+          <div class="mode-grid" aria-label="Режим игры">
+            <button class="mode-button active" id="goalModeButton" type="button">Цель: 15</button>
+            <button class="mode-button" id="endlessModeButton" type="button">Рекорд</button>
+          </div>
           <button id="restartButton" type="button">Restart</button>
         </div>
       </section>
@@ -518,6 +547,8 @@
     const messageTitle = document.getElementById('messageTitle');
     const messageText = document.getElementById('messageText');
     const restartButton = document.getElementById('restartButton');
+    const goalModeButton = document.getElementById('goalModeButton');
+    const endlessModeButton = document.getElementById('endlessModeButton');
 
     const assets = {
       background: loadImage('assets/background.png'),
@@ -534,10 +565,12 @@
       gravitySpeed: 120,
       spawnTimer: 0,
       running: false,
+      mode: 'goal',
       lastTime: 0,
       score: 0,
       lives: 3,
       best: Number(localStorage.getItem('iceCourierBest') || 0),
+      endlessBest: Number(localStorage.getItem('iceCourierEndlessBest') || 0),
       objects: []
     };
 
@@ -553,6 +586,7 @@
 
     goalEl.textContent = world.goal;
     bestEl.textContent = world.best;
+    setMode('goal');
 
     function loadImage(src) {
       const image = new Image();
@@ -580,7 +614,8 @@
     function updateHud() {
       scoreEl.textContent = world.score;
       livesEl.textContent = world.lives;
-      bestEl.textContent = world.best;
+      goalEl.textContent = world.mode === 'goal' ? world.goal : '∞';
+      bestEl.textContent = world.mode === 'goal' ? world.best : world.endlessBest;
     }
 
     function gameLoop(time) {
@@ -609,8 +644,9 @@
 
       world.spawnTimer -= delta;
       if (world.spawnTimer <= 0) {
-        spawnObject();
-        world.spawnTimer = Math.max(0.36, 0.82 - world.score * 0.018);
+        spawnWave();
+        const endlessPressure = world.mode === 'endless' ? world.score * 0.026 : world.score * 0.018;
+        world.spawnTimer = Math.max(world.mode === 'endless' ? 0.24 : 0.36, 0.82 - endlessPressure);
       }
 
       for (let i = world.objects.length - 1; i >= 0; i--) {
@@ -627,7 +663,7 @@
             showToast('♦', 'Кристалл +1 очко', 'good');
             pulseStat(scoreStat);
             flashScreen('good');
-            if (world.score >= world.goal) finishGame(true);
+            if (world.mode === 'goal' && world.score >= world.goal) finishGame(true);
           } else {
             world.lives -= 1;
             showFeedback('-1 жизнь', item.x + item.width / 2, item.y + item.height / 2, 'bad');
@@ -647,8 +683,24 @@
       }
     }
 
-    function spawnObject() {
-      const isCrystal = Math.random() > 0.32;
+    function spawnWave() {
+      spawnObject();
+      if (world.mode === 'endless') {
+        const pressure = Math.min(world.score / 45, 1);
+        if (Math.random() < 0.18 + pressure * 0.28) {
+          spawnObject(true);
+        }
+        if (world.score > 18 && Math.random() < 0.08 + pressure * 0.16) {
+          setTimeout(() => spawnObject(true), 140);
+        }
+      }
+    }
+
+    function spawnObject(forceHard = false) {
+      const rockChance = world.mode === 'endless'
+        ? Math.min(0.58, 0.30 + world.score * 0.012)
+        : 0.32;
+      const isCrystal = forceHard ? Math.random() > rockChance + 0.12 : Math.random() > rockChance;
       const size = isCrystal ? random(40, 58) : random(56, 76);
       world.objects.push({
         type: isCrystal ? 'crystal' : 'rock',
@@ -656,7 +708,7 @@
         y: -size,
         width: size,
         height: size,
-        speed: world.gravitySpeed + random(20, 105),
+        speed: world.gravitySpeed + random(20, world.mode === 'endless' ? 145 : 105) + (world.mode === 'endless' ? world.score * 1.2 : 0),
         angle: random(0, Math.PI * 2),
         spin: random(-1.8, 1.8)
       });
@@ -730,8 +782,13 @@
 
     function finishGame(isWin) {
       world.running = false;
-      world.best = Math.max(world.best, world.score);
-      localStorage.setItem('iceCourierBest', String(world.best));
+      if (world.mode === 'goal') {
+        world.best = Math.max(world.best, world.score);
+        localStorage.setItem('iceCourierBest', String(world.best));
+      } else {
+        world.endlessBest = Math.max(world.endlessBest, world.score);
+        localStorage.setItem('iceCourierEndlessBest', String(world.endlessBest));
+      }
       updateHud();
 
       messageBadge.textContent = isWin ? '+' : '!';
@@ -740,10 +797,22 @@
         ? '0 0 0 6px rgba(138, 243, 255, 0.2)'
         : '0 0 0 6px rgba(255, 154, 168, 0.24)';
       messageTitle.textContent = isWin ? 'Победа!' : 'Игра окончена';
-      messageText.textContent = isWin
+      messageText.textContent = world.mode === 'endless'
+        ? `Режим рекорда завершён. Ваш счёт: ${world.score}.`
+        : isWin
         ? `Курьер доставил ${world.score} кристаллов. Отличная смена!`
         : `Ледяные плиты остановили курьера. Ваш счёт: ${world.score}.`;
       overlay.hidden = false;
+    }
+
+    function setMode(mode) {
+      world.mode = mode;
+      goalModeButton.classList.toggle('active', mode === 'goal');
+      endlessModeButton.classList.toggle('active', mode === 'endless');
+      messageText.textContent = mode === 'goal'
+        ? 'Соберите 15 кристаллов и не врежьтесь в опасные ледяные плиты.'
+        : 'Играйте без цели по очкам: скорость, частота плит и сложные волны будут расти до последней жизни.';
+      updateHud();
     }
 
     function showFeedback(text, worldX, worldY, type) {
@@ -809,6 +878,8 @@
     });
 
     restartButton.addEventListener('click', resetGame);
+    goalModeButton.addEventListener('click', () => setMode('goal'));
+    endlessModeButton.addEventListener('click', () => setMode('endless'));
 
     Promise.all(Object.values(assets).map((image) => new Promise((resolve) => {
       image.addEventListener('load', resolve, { once: true });

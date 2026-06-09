@@ -24,10 +24,15 @@ python3 -m http.server 8000
 
 Соберите 15 кристаллов, чтобы выиграть. При столкновении с ледяной плитой теряется 1 жизнь. Игра заканчивается поражением, когда жизни доходят до 0.
 
+### Режимы
+
+- **Цель: 15** - классический экзаменационный режим с победой после 15 кристаллов.
+- **Рекорд** - бесконечный режим без ограничения по цели. Сложность растёт: объекты падают быстрее, ледяные плиты появляются чаще, а после набора очков возникают дополнительные волны.
+
 ### Особенности
 
 - Canvas API и игровой цикл на `requestAnimationFrame`.
-- Очки, жизни, цель и рекорд через `localStorage`.
+- Очки, жизни, цель, отдельные рекорды режимов через `localStorage`.
 - Всплывающие подсказки `+1 очко` и `-1 жизнь`.
 - Спрайт-лист игрока из 3 кадров.
 - Локальные PNG-ассеты без внешних зависимостей.
@@ -67,10 +72,15 @@ Then visit `http://localhost:8000/`.
 
 Collect 15 crystals to win. Hitting an ice rock removes 1 life. The game ends when the player has no lives left.
 
+### Modes
+
+- **Goal: 15** - the classic exam mode with a win condition after 15 collected crystals.
+- **Record** - an endless high-score mode with no score limit. Difficulty increases over time: falling objects get faster, ice rocks become more frequent, and extra waves appear after the score grows.
+
 ### Features
 
 - Canvas API with a `requestAnimationFrame` game loop.
-- Score, lives, goal, and best score stored with `localStorage`.
+- Score, lives, goal, and separate mode best scores stored with `localStorage`.
 - Visual feedback for `+1 score` and `-1 life`.
 - 3-frame player sprite sheet animation.
 - Local PNG assets with no external runtime dependencies.
@@ -83,4 +93,3 @@ Collect 15 crystals to win. Hitting an ice rock removes 1 life. The game ends wh
 ### Browser Check
 
 The game is designed for modern browsers: Google Chrome, Mozilla Firefox, and Microsoft Edge. The source comments state Chrome and Firefox as the required tested browsers.
-
