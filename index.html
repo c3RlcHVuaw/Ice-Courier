@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ice Courier: сбор кристаллов</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(84, 197, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 82% 18%, rgba(255, 209, 102, 0.12), transparent 24%),
+        linear-gradient(135deg, #0e1720 0%, #132838 48%, #101820 100%);
+      color: #f8fbff;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .game-shell {
+      width: min(960px, 96vw);
+      padding: 16px;
+      background: linear-gradient(180deg, rgba(31, 52, 68, 0.96), rgba(18, 31, 42, 0.96));
+      border: 1px solid rgba(176, 221, 246, 0.42);
+      border-radius: 8px;
+      box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .stat {
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 10px;
+      border: 1px solid rgba(154, 196, 219, 0.38);
+      border-radius: 6px;
+      background: rgba(18, 35, 48, 0.84);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-icon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #dff7ff;
+      color: #14202a;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .stat-copy {
+      min-width: 0;
+    }
+
+    .stat-label {
+      display: block;
+      color: #a9c5d8;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      display: block;
+      color: #fff;
+      font-size: 21px;
+      font-weight: 900;
+      line-height: 1.05;
+    }
+
+    .stat.pulse {
+      animation: statPulse 420ms ease-out;
+    }
+
+    .score-stat .stat-icon {
+      background: #8af3ff;
+    }
+
+    .life-stat .stat-icon {
+      background: #ff9aa8;
+    }
+
+    .goal-stat .stat-icon {
+      background: #ffe082;
+    }
+
+    .best-stat .stat-icon {
+      background: #b7f7c1;
+    }
+
+    .score-stat .stat-icon::before {
+      content: "♦";
+    }
+
+    .life-stat .stat-icon::before {
+      content: "♥";
+    }
+
+    .goal-stat .stat-icon::before {
+      content: "★";
+    }
+
+    .best-stat .stat-icon::before {
+      content: "▲";
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border: 1px solid rgba(201, 235, 255, 0.58);
+      border-radius: 8px;
+      background: #0f1620;
+      box-shadow:
+        inset 0 0 0 4px rgba(255, 255, 255, 0.05),
+        0 10px 28px rgba(0, 0, 0, 0.32);
+    }
+
+    .canvas-wrap::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: 7px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 16%, transparent 84%, rgba(0, 0, 0, 0.24));
+      z-index: 2;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: auto;
+    }
+
+    .feedback-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .event-toast {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 150px;
+      padding: 10px 12px;
+      border: 1px solid rgba(201, 235, 255, 0.54);
+      border-radius: 8px;
+      background: rgba(10, 20, 28, 0.78);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+      opacity: 0;
+      transform: translateY(-8px);
+      pointer-events: none;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    }
+
+    .event-toast.show {
+      animation: toastShow 1200ms ease-out forwards;
+    }
+
+    .event-toast.good .toast-icon {
+      background: #8af3ff;
+      color: #14202a;
+    }
+
+    .event-toast.bad .toast-icon {
+      background: #ff9aa8;
+      color: #14202a;
+    }
+
+    .toast-icon {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      font-weight: 900;
+    }
+
+    .floating-feedback {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      transform: translate(-50%, -50%);
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(10, 20, 28, 0.78);
+      color: #fff;
+      font-size: 20px;
+      font-weight: 900;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+      animation: floatUp 820ms ease-out forwards;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+      white-space: nowrap;
+    }
+
+    .floating-feedback.good {
+      color: #8af3ff;
+      border: 1px solid rgba(138, 243, 255, 0.72);
+    }
+
+    .floating-feedback.bad {
+      color: #ff9aa8;
+      border: 1px solid rgba(255, 154, 168, 0.72);
+    }
+
+    .screen-flash {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .screen-flash.good {
+      animation: goodFlash 300ms ease-out;
+    }
+
+    .screen-flash.bad {
+      animation: badFlash 360ms ease-out;
+    }
+
+    .canvas-wrap.hit {
+      animation: hitShake 250ms ease-out;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background:
+        linear-gradient(180deg, rgba(7, 13, 19, 0.56), rgba(7, 13, 19, 0.82)),
+        rgba(10, 17, 24, 0.42);
+      z-index: 5;
+      backdrop-filter: blur(2px);
+    }
+
+    .overlay[hidden] {
+      display: none;
+    }
+
+    .dialog {
+      width: min(440px, 92%);
+      padding: 22px;
+      border: 1px solid rgba(180, 222, 247, 0.8);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(230, 245, 255, 0.96));
+      color: #14202a;
+      text-align: center;
+      box-shadow: 0 22px 56px rgba(0, 0, 0, 0.38);
+    }
+
+    .dialog-badge {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 10px;
+      border-radius: 50%;
+      background: #14202a;
+      color: #8af3ff;
+      font-size: 28px;
+      font-weight: 900;
+      box-shadow: 0 0 0 6px rgba(138, 243, 255, 0.2);
+    }
+
+    .dialog h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+
+    .dialog p {
+      margin: 8px 0;
+      line-height: 1.4;
+    }
+
+    .mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 14px 0 4px;
+    }
+
+    button {
+      min-height: 44px;
+      margin-top: 12px;
+      padding: 10px 18px;
+      border: 0;
+      border-radius: 6px;
+      background: linear-gradient(180deg, #ff5666, #d62d3f);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(214, 45, 63, 0.34);
+    }
+
+    .mode-button {
+      margin-top: 0;
+      padding: 10px;
+      background: linear-gradient(180deg, #263d50, #182b3a);
+      border: 1px solid rgba(142, 198, 231, 0.44);
+      color: #e9f7ff;
+      box-shadow: none;
+    }
+
+    .mode-button.active {
+      background: linear-gradient(180deg, #35c7df, #15859e);
+      color: #07141c;
+    }
+
+    button:hover,
+    button:focus-visible {
+      background: #bd2736;
+      outline: 3px solid #ffd166;
+      outline-offset: 2px;
+    }
+
+    .hint {
+      margin: 12px 0 0;
+      color: #cfe1ee;
+      text-align: center;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 680px) {
+      .game-shell {
+        padding: 10px;
+      }
+
+      .topbar {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .stat {
+        font-size: 14px;
+      }
+
+      .stat-value {
+        font-size: 18px;
+      }
+
+      .event-toast {
+        left: 12px;
+        right: 12px;
+        min-width: 0;
+      }
+
+      .mode-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dialog h1 {
+        font-size: 23px;
+      }
+    }
+
+    @keyframes floatUp {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -20%) scale(0.78);
+      }
+
+      18% {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0;
+        transform: translate(-50%, -145%) scale(1.08);
+      }
+    }
+
+    @keyframes goodFlash {
+      from {
+        opacity: 0.72;
+        background: rgba(79, 224, 255, 0.3);
+      }
+
+      to {
+        opacity: 0;
+        background: rgba(79, 224, 255, 0);
+      }
+    }
+
+    @keyframes badFlash {
+      from {
+        opacity: 0.75;
+        background: rgba(255, 71, 92, 0.34);
+      }
+
+      to {
+        opacity: 0;
+        background: rgba(255, 71, 92, 0);
+      }
+    }
+
+    @keyframes hitShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-5px); }
+      45% { transform: translateX(5px); }
+      70% { transform: translateX(-3px); }
+    }
+
+    @keyframes statPulse {
+      from {
+        border-color: rgba(255, 255, 255, 0.95);
+        transform: translateY(-2px) scale(1.02);
+      }
+
+      to {
+        border-color: rgba(154, 196, 219, 0.38);
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes toastShow {
+      0% {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      15%, 78% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <div class="topbar" aria-label="Показатели игры">
+      <div class="stat score-stat">
+        <span class="stat-icon" aria-hidden="true"></span>
+        <span class="stat-copy"><span class="stat-label">Очки</span><span class="stat-value" id="score">0</span></span>
+      </div>
+      <div class="stat life-stat">
+        <span class="stat-icon" aria-hidden="true"></span>
+        <span class="stat-copy"><span class="stat-label">Жизни</span><span class="stat-value" id="lives">3</span></span>
+      </div>
+      <div class="stat goal-stat">
+        <span class="stat-icon" aria-hidden="true"></span>
+        <span class="stat-copy"><span class="stat-label">Цель</span><span class="stat-value" id="goal">15</span></span>
+      </div>
+      <div class="stat best-stat">
+        <span class="stat-icon" aria-hidden="true"></span>
+        <span class="stat-copy"><span class="stat-label">Рекорд</span><span class="stat-value" id="best">0</span></span>
+      </div>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="gameCanvas" width="960" height="540"></canvas>
+      <div class="screen-flash" id="screenFlash"></div>
+      <div class="event-toast" id="eventToast">
+        <span class="toast-icon" id="toastIcon">♦</span>
+        <span id="toastText">Кристалл +1</span>
+      </div>
+      <div class="feedback-layer" id="feedbackLayer" aria-hidden="true"></div>
+      <section class="overlay" id="overlay">
+        <div class="dialog">
+          <div class="dialog-badge" id="messageBadge">+</div>
+          <h1 id="messageTitle">Ice Courier</h1>
+          <p id="messageText">Соберите 15 кристаллов и не врежьтесь в опасные ледяные плиты.</p>
+          <p>Управление: A/D, стрелки или мышь.</p>
+          <div class="mode-grid" aria-label="Режим игры">
+            <button class="mode-button active" id="goalModeButton" type="button">Цель: 15</button>
+            <button class="mode-button" id="endlessModeButton" type="button">Рекорд</button>
+          </div>
+          <button id="restartButton" type="button">Restart</button>
+        </div>
+      </section>
+    </div>
+
+    <p class="hint">Ловите синие кристаллы, уклоняйтесь от треснувших плит. Победа наступает при 15 очках, поражение - когда закончились жизни.</p>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const goalEl = document.getElementById('goal');
+    const bestEl = document.getElementById('best');
+    const overlay = document.getElementById('overlay');
+    const canvasWrap = document.querySelector('.canvas-wrap');
+    const scoreStat = document.querySelector('.score-stat');
+    const lifeStat = document.querySelector('.life-stat');
+    const feedbackLayer = document.getElementById('feedbackLayer');
+    const screenFlash = document.getElementById('screenFlash');
+    const eventToast = document.getElementById('eventToast');
+    const toastIcon = document.getElementById('toastIcon');
+    const toastText = document.getElementById('toastText');
+    const messageBadge = document.getElementById('messageBadge');
+    const messageTitle = document.getElementById('messageTitle');
+    const messageText = document.getElementById('messageText');
+    const restartButton = document.getElementById('restartButton');
+    const goalModeButton = document.getElementById('goalModeButton');
+    const endlessModeButton = document.getElementById('endlessModeButton');
+
+    const assets = {
+      background: loadImage('assets/background.png'),
+      player: loadImage('assets/player-sprites.png'),
+      crystal: loadImage('assets/crystal.png'),
+      rock: loadImage('assets/rock.png')
+    };
+
+    const keys = new Set();
+    const world = {
+      width: canvas.width,
+      height: canvas.height,
+      goal: 15,
+      gravitySpeed: 120,
+      spawnTimer: 0,
+      running: false,
+      mode: 'goal',
+      lastTime: 0,
+      score: 0,
+      lives: 3,
+      best: Number(localStorage.getItem('iceCourierBest') || 0),
+      endlessBest: Number(localStorage.getItem('iceCourierEndlessBest') || 0),
+      objects: []
+    };
+
+    const player = {
+      x: canvas.width / 2 - 34,
+      y: canvas.height - 90,
+      width: 68,
+      height: 78,
+      speed: 430,
+      frame: 0,
+      frameTimer: 0
+    };
+
+    goalEl.textContent = world.goal;
+    bestEl.textContent = world.best;
+    setMode('goal');
+
+    function loadImage(src) {
+      const image = new Image();
+      image.src = src;
+      return image;
+    }
+
+    function resetGame() {
+      world.running = true;
+      world.lastTime = performance.now();
+      world.score = 0;
+      world.lives = 3;
+      world.spawnTimer = 0;
+      world.gravitySpeed = 120;
+      world.objects = [];
+      feedbackLayer.replaceChildren();
+      player.x = canvas.width / 2 - player.width / 2;
+      player.frame = 0;
+      player.frameTimer = 0;
+      updateHud();
+      overlay.hidden = true;
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateHud() {
+      scoreEl.textContent = world.score;
+      livesEl.textContent = world.lives;
+      goalEl.textContent = world.mode === 'goal' ? world.goal : '∞';
+      bestEl.textContent = world.mode === 'goal' ? world.best : world.endlessBest;
+    }
+
+    function gameLoop(time) {
+      if (!world.running) return;
+      const delta = Math.min((time - world.lastTime) / 1000, 0.04);
+      world.lastTime = time;
+
+      update(delta);
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update(delta) {
+      const movingLeft = keys.has('ArrowLeft') || keys.has('KeyA');
+      const movingRight = keys.has('ArrowRight') || keys.has('KeyD');
+
+      if (movingLeft) player.x -= player.speed * delta;
+      if (movingRight) player.x += player.speed * delta;
+
+      player.x = clamp(player.x, 10, world.width - player.width - 10);
+      player.frameTimer += delta;
+      if (player.frameTimer > 0.12) {
+        player.frame = (player.frame + 1) % 3;
+        player.frameTimer = 0;
+      }
+
+      world.spawnTimer -= delta;
+      if (world.spawnTimer <= 0) {
+        spawnWave();
+        const endlessPressure = world.mode === 'endless' ? world.score * 0.026 : world.score * 0.018;
+        world.spawnTimer = Math.max(world.mode === 'endless' ? 0.24 : 0.36, 0.82 - endlessPressure);
+      }
+
+      for (let i = world.objects.length - 1; i >= 0; i--) {
+        const item = world.objects[i];
+        item.y += item.speed * delta;
+        item.angle += item.spin * delta;
+
+        if (rectsOverlap(player, item)) {
+          world.objects.splice(i, 1);
+          if (item.type === 'crystal') {
+            world.score += 1;
+            world.gravitySpeed += 6;
+            showFeedback('+1 очко', item.x + item.width / 2, item.y + item.height / 2, 'good');
+            showToast('♦', 'Кристалл +1 очко', 'good');
+            pulseStat(scoreStat);
+            flashScreen('good');
+            if (world.mode === 'goal' && world.score >= world.goal) finishGame(true);
+          } else {
+            world.lives -= 1;
+            showFeedback('-1 жизнь', item.x + item.width / 2, item.y + item.height / 2, 'bad');
+            showToast('♥', 'Удар: -1 жизнь', 'bad');
+            pulseStat(lifeStat);
+            flashScreen('bad');
+            shakeCanvas();
+            if (world.lives <= 0) finishGame(false);
+          }
+          updateHud();
+          continue;
+        }
+
+        if (item.y > world.height + item.height) {
+          world.objects.splice(i, 1);
+        }
+      }
+    }
+
+    function spawnWave() {
+      spawnObject();
+      if (world.mode === 'endless') {
+        const pressure = Math.min(world.score / 45, 1);
+        if (Math.random() < 0.18 + pressure * 0.28) {
+          spawnObject(true);
+        }
+        if (world.score > 18 && Math.random() < 0.08 + pressure * 0.16) {
+          setTimeout(() => spawnObject(true), 140);
+        }
+      }
+    }
+
+    function spawnObject(forceHard = false) {
+      const rockChance = world.mode === 'endless'
+        ? Math.min(0.58, 0.30 + world.score * 0.012)
+        : 0.32;
+      const isCrystal = forceHard ? Math.random() > rockChance + 0.12 : Math.random() > rockChance;
+      const size = isCrystal ? random(40, 58) : random(56, 76);
+      world.objects.push({
+        type: isCrystal ? 'crystal' : 'rock',
+        x: random(18, world.width - size - 18),
+        y: -size,
+        width: size,
+        height: size,
+        speed: world.gravitySpeed + random(20, world.mode === 'endless' ? 145 : 105) + (world.mode === 'endless' ? world.score * 1.2 : 0),
+        angle: random(0, Math.PI * 2),
+        spin: random(-1.8, 1.8)
+      });
+    }
+
+    function draw() {
+      drawBackground();
+      drawObjects();
+      drawPlayer();
+    }
+
+    function drawBackground() {
+      if (assets.background.complete) {
+        ctx.drawImage(assets.background, 0, 0, world.width, world.height);
+      } else {
+        ctx.fillStyle = '#172635';
+        ctx.fillRect(0, 0, world.width, world.height);
+      }
+
+      ctx.fillStyle = 'rgba(8, 16, 24, 0.18)';
+      ctx.fillRect(0, 0, world.width, world.height);
+    }
+
+    function drawObjects() {
+      for (const item of world.objects) {
+        const image = item.type === 'crystal' ? assets.crystal : assets.rock;
+        ctx.save();
+        ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
+        ctx.rotate(item.angle);
+        if (image.complete) {
+          ctx.drawImage(image, -item.width / 2, -item.height / 2, item.width, item.height);
+        } else {
+          ctx.fillStyle = item.type === 'crystal' ? '#5fe8ff' : '#695b8c';
+          ctx.fillRect(-item.width / 2, -item.height / 2, item.width, item.height);
+        }
+        ctx.restore();
+      }
+    }
+
+    function drawPlayer() {
+      const sprite = assets.player;
+      if (sprite.complete) {
+        const frameWidth = sprite.width / 3;
+        ctx.drawImage(
+          sprite,
+          frameWidth * player.frame,
+          0,
+          frameWidth,
+          sprite.height,
+          player.x,
+          player.y,
+          player.width,
+          player.height
+        );
+      } else {
+        ctx.fillStyle = '#2bd6c4';
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+      }
+    }
+
+    function rectsOverlap(a, b) {
+      const insetA = 12;
+      const insetB = b.type === 'rock' ? 12 : 8;
+      return (
+        a.x + insetA < b.x + b.width - insetB &&
+        a.x + a.width - insetA > b.x + insetB &&
+        a.y + insetA < b.y + b.height - insetB &&
+        a.y + a.height - insetA > b.y + insetB
+      );
+    }
+
+    function finishGame(isWin) {
+      world.running = false;
+      if (world.mode === 'goal') {
+        world.best = Math.max(world.best, world.score);
+        localStorage.setItem('iceCourierBest', String(world.best));
+      } else {
+        world.endlessBest = Math.max(world.endlessBest, world.score);
+        localStorage.setItem('iceCourierEndlessBest', String(world.endlessBest));
+      }
+      updateHud();
+
+      messageBadge.textContent = isWin ? '+' : '!';
+      messageBadge.style.color = isWin ? '#8af3ff' : '#ff9aa8';
+      messageBadge.style.boxShadow = isWin
+        ? '0 0 0 6px rgba(138, 243, 255, 0.2)'
+        : '0 0 0 6px rgba(255, 154, 168, 0.24)';
+      messageTitle.textContent = isWin ? 'Победа!' : 'Игра окончена';
+      messageText.textContent = world.mode === 'endless'
+        ? `Режим рекорда завершён. Ваш счёт: ${world.score}.`
+        : isWin
+        ? `Курьер доставил ${world.score} кристаллов. Отличная смена!`
+        : `Ледяные плиты остановили курьера. Ваш счёт: ${world.score}.`;
+      overlay.hidden = false;
+    }
+
+    function setMode(mode) {
+      world.mode = mode;
+      goalModeButton.classList.toggle('active', mode === 'goal');
+      endlessModeButton.classList.toggle('active', mode === 'endless');
+      messageText.textContent = mode === 'goal'
+        ? 'Соберите 15 кристаллов и не врежьтесь в опасные ледяные плиты.'
+        : 'Играйте без цели по очкам: скорость, частота плит и сложные волны будут расти до последней жизни.';
+      updateHud();
+    }
+
+    function showFeedback(text, worldX, worldY, type) {
+      const marker = document.createElement('div');
+      marker.className = `floating-feedback ${type}`;
+      marker.textContent = text;
+      marker.style.setProperty('--x', `${worldX / canvas.width * 100}%`);
+      marker.style.setProperty('--y', `${worldY / canvas.height * 100}%`);
+      feedbackLayer.append(marker);
+      marker.addEventListener('animationend', () => marker.remove(), { once: true });
+    }
+
+    function showToast(icon, text, type) {
+      toastIcon.textContent = icon;
+      toastText.textContent = text;
+      eventToast.className = `event-toast ${type}`;
+      void eventToast.offsetWidth;
+      eventToast.classList.add('show');
+    }
+
+    function pulseStat(stat) {
+      stat.classList.remove('pulse');
+      void stat.offsetWidth;
+      stat.classList.add('pulse');
+    }
+
+    function flashScreen(type) {
+      screenFlash.className = 'screen-flash';
+      void screenFlash.offsetWidth;
+      screenFlash.classList.add(type);
+    }
+
+    function shakeCanvas() {
+      canvasWrap.classList.remove('hit');
+      void canvasWrap.offsetWidth;
+      canvasWrap.classList.add('hit');
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function random(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    window.addEventListener('keydown', (event) => {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD'].includes(event.code)) {
+        event.preventDefault();
+        keys.add(event.code);
+      }
+    });
+
+    window.addEventListener('keyup', (event) => {
+      keys.delete(event.code);
+    });
+
+    canvas.addEventListener('pointermove', (event) => {
+      if (!world.running) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      player.x = clamp((event.clientX - rect.left) * scaleX - player.width / 2, 10, world.width - player.width - 10);
+    });
+
+    restartButton.addEventListener('click', resetGame);
+    goalModeButton.addEventListener('click', () => setMode('goal'));
+    endlessModeButton.addEventListener('click', () => setMode('endless'));
+
+    Promise.all(Object.values(assets).map((image) => new Promise((resolve) => {
+      image.addEventListener('load', resolve, { once: true });
+      image.addEventListener('error', resolve, { once: true });
+      if (image.complete) resolve();
+    }))).then(() => {
+      draw();
+    });
+  </script>
+</body>
+</html>
