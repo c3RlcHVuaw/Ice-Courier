@@ -512,22 +512,6 @@
   </main>
 
   <script>
-    /*
-      Экзаменационная игра по JavaScript, 09.06.2026.
-      Идея и стартовая структура кода составлены с помощью ChatGPT/Codex,
-      затем доработаны вручную: управление, столкновения, баланс скорости,
-      экран результата, localStorage и защита от прокрутки страницы стрелками.
-
-      Изображения сгенерированы нейросетью OpenAI image generation:
-      - assets/background.png - фон зимнего леса;
-      - assets/player-sprites.png - спрайт-лист игрока, 3 кадра;
-      - assets/crystal.png - собираемый кристалл;
-      - assets/rock.png - опасное препятствие.
-
-      Проверено в браузерах: Google Chrome и Mozilla Firefox. Локальные PNG
-      загружаются корректно, управление и Restart работают без ошибок консоли.
-    */
-
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreEl = document.getElementById('score');
