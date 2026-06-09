@@ -4,6 +4,8 @@
 
 **Ice Courier** - простая браузерная 2D-игра на JavaScript для экзамена по МДК 05.02. Игрок управляет зимним курьером, ловит падающие магические кристаллы и уворачивается от опасных ледяных плит.
 
+Играть онлайн: https://c3rlchvuaw.github.io/Ice-Courier/
+
 ### Как запустить
 
 Откройте `index.html` в браузере или запустите локальный сервер:
@@ -51,6 +53,8 @@ python3 -m http.server 8000
 ## English
 
 **Ice Courier** is a simple browser-based 2D JavaScript game created for an MDK 05.02 exam assignment. The player controls a winter courier, catches falling magic crystals, and avoids dangerous cracked ice rocks.
+
+Play online: https://c3rlchvuaw.github.io/Ice-Courier/
 
 ### How to Run
 
